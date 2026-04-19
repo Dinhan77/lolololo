@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lỏ Lỏ Lỏ — AI Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #c084fc;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --cyan: #06b6d4;
+    --text: #f1f5f9;
+    --text2: #94a3b8;
+    --text3: #475569;
+    --card: #12121a;
+    --card2: #1c1c28;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+  .glow-orb {
+    position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0;
+  }
+  .orb1 { width: 600px; height: 600px; background: rgba(124,58,237,0.12); top: -200px; left: -100px; }
+  .orb2 { width: 400px; height: 400px; background: rgba(6,182,212,0.08); bottom: -100px; right: -100px; }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 100;
+    padding: 0;
+  }
+  .logo-area {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-main {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent2), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .logo-sub { font-size: 10px; color: var(--text3); font-family: 'Space Mono', monospace; margin-top: 4px; letter-spacing: 2px; }
+  .nav-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; cursor: pointer; border-radius: 0;
+    font-size: 13px; font-weight: 600; color: var(--text2);
+    transition: all 0.2s; border-left: 3px solid transparent;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(124,58,237,0.12); color: var(--accent3); border-left-color: var(--accent); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: white;
+    font-size: 9px; padding: 2px 6px; border-radius: 10px; font-family: 'Space Mono', monospace;
+  }
+  .nav-badge.live { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+  .api-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+  /* MAIN */
+  .main { margin-left: 220px; min-height: 100vh; position: relative; z-index: 1; }
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10,10,15,0.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px; display: flex; align-items: center; gap: 12px;
+  }
+  .topbar-title { font-size: 18px; font-weight: 700; }
+  .topbar-sub { font-size: 12px; color: var(--text3); font-family: 'Space Mono', monospace; margin-left: auto; }
+  .content { padding: 24px 28px; }
+
+  /* TAB PANELS */
+  .panel { display: none; animation: fadeIn 0.3s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* CARDS */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title span { font-size: 16px; }
+
+  /* SECTION GRID */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:900px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* TOKEN CARD */
+  .token-item {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .token-item:hover { border-color: var(--border2); }
+  .token-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .token-rank { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text3); width: 20px; }
+  .token-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex-shrink: 0; }
+  .token-name { font-weight: 700; font-size: 14px; }
+  .token-pair { font-size: 11px; color: var(--text3); font-family: 'Space Mono', monospace; }
+  .token-price { margin-left: auto; text-align: right; }
+  .token-price .price { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+  .token-price .change { font-size: 11px; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .token-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .score-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 10px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--cyan)); }
+  .score-label { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: var(--text3); font-family: 'Space Mono', monospace; }
+
+  /* INPUT + BUTTON */
+  .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .inp {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'Syne', sans-serif;
+    font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  .inp:focus { border-color: var(--accent); }
+  .inp::placeholder { color: var(--text3); }
+  .btn {
+    background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 10px 18px; font-family: 'Syne', sans-serif; font-size: 13px;
+    font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.secondary { background: var(--card2); border: 1px solid var(--border2); color: var(--text); }
+  .btn.secondary:hover { background: var(--bg3); }
+  .btn.green { background: var(--green); }
+  .btn.loading { opacity: 0.7; pointer-events: none; }
+
+  /* AI RESPONSE BOX */
+  .ai-box {
+    background: rgba(124,58,237,0.06); border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.8;
+    color: var(--text); white-space: pre-wrap; min-height: 60px;
+    position: relative;
+  }
+  .ai-box .ai-label { position: absolute; top: -10px; left: 12px; background: var(--accent); color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700; letter-spacing: 1px; }
+  .typing::after { content: '▌'; animation: blink 0.7s infinite; color: var(--accent3); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { color: var(--text3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 10px 10px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+  .data-table tr:hover td { background: var(--card2); color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+
+  /* TAGS */
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; font-family: 'Space Mono', monospace; margin-right: 4px; margin-bottom: 4px; }
+  .tag.green { background: rgba(16,185,129,0.15); color: var(--green); }
+  .tag.red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .tag.blue { background: rgba(6,182,212,0.15); color: var(--cyan); }
+  .tag.purple { background: rgba(168,85,247,0.15); color: var(--accent3); }
+  .tag.gold { background: rgba(245,158,11,0.15); color: var(--gold); }
+
+  /* PROGRESS / PIE */
+  .pie-wrap { display: flex; align-items: center; gap: 20px; }
+  .pie { position: relative; width: 80px; height: 80px; }
+  .pie svg { width: 80px; height: 80px; transform: rotate(-90deg); }
+  .pie-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; }
+  .pie-info { flex: 1; }
+  .pie-info .market { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .pie-info .sub { font-size: 12px; color: var(--text2); }
+  .pie-info .ydesc { font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.6; }
+
+  /* WALLET */
+  .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-box { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent3); }
+  .stat-lbl { font-size: 10px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* LOADING SPINNER */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* SECTION HEADER */
+  .sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .sec-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+  /* MARKET ROW */
+  .market-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .market-row:last-child { border-bottom: none; }
+  .market-idx { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text3); width: 24px; }
+  .market-name { flex: 1; font-weight: 600; font-size: 13px; }
+  .market-cat { font-size: 11px; color: var(--text3); }
+  .market-vol { font-family: 'Space Mono', monospace; font-size: 12px; text-align: right; }
+
+  /* RAISE CARD */
+  .raise-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .raise-logo { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+  .raise-info { flex: 1; }
+  .raise-name { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .raise-meta { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+  .raise-amount { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; color: var(--gold); }
+  .raise-round { font-size: 11px; color: var(--text2); }
+
+  /* JOB CARD */
+  .job-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .job-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .job-company { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .job-tags { margin-bottom: 8px; }
+  .job-salary { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--green); font-weight: 700; }
+
+  /* CONTENT */
+  .content-preview { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .platform-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+  .content-text { font-size: 13px; line-height: 1.8; white-space: pre-wrap; }
+  .copy-btn { margin-top: 10px; font-size: 11px; padding: 6px 12px; }
+
+  /* AFFILIATE */
+  .affiliate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .aff-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .aff-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .aff-icon { font-size: 28px; margin-bottom: 8px; }
+  .aff-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .aff-desc { font-size: 11px; color: var(--text3); }
+
+  textarea.inp { resize: vertical; min-height: 80px; }
+  select.inp { cursor: pointer; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+  .empty-state .big { font-size: 32px; margin-bottom: 8px; }
+
+  /* API KEY BOX */
+  .apikey-box { padding: 12px 14px; border-top: 1px solid var(--border); }
+  .apikey-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-family: 'Space Mono', monospace; }
+  .apikey-row { display: flex; gap: 6px; align-items: center; }
+  .apikey-inp {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px; color: var(--text);
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    outline: none; transition: border-color 0.2s; min-width: 0;
+  }
+  .apikey-inp:focus { border-color: var(--accent); }
+  .apikey-inp::placeholder { color: var(--text3); }
+  .apikey-save {
+    background: var(--accent); color: white; border: none; border-radius: 6px;
+    padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; transition: background 0.2s; flex-shrink: 0;
+  }
+  .apikey-save:hover { background: var(--accent2); }
+  .apikey-status { font-size: 10px; margin-top: 5px; font-family: 'Space Mono', monospace; display: flex; align-items: center; gap: 4px; }
+  .apikey-status.ok { color: var(--green); }
+  .apikey-status.err { color: var(--red); }
+  .apikey-status.empty { color: var(--text3); }
+  .key-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .key-dot.ok { background: var(--green); animation: pulse 2s infinite; }
+  .key-dot.err { background: var(--red); }
+  .key-dot.empty { background: var(--text3); }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-main">Lỏ Lỏ Lỏ</div>
+    <div class="logo-sub">AI CRYPTO AGENT</div>
+  </div>
+  <nav class="nav-list">
+    <div class="nav-item active" onclick="switchTab('binance')">
+      <span class="nav-icon">₿</span> Binance <span class="nav-badge live">LIVE</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('meme')">
+      <span class="nav-icon">🐸</span> Meme Scout
+    </div>
+    <div class="nav-item" onclick="switchTab('prediction')">
+      <span class="nav-icon">🎯</span> Prediction
+    </div>
+    <div class="nav-item" onclick="switchTab('raise')">
+      <span class="nav-icon">💰</span> Raise Intel
+    </div>
+    <div class="nav-item" onclick="switchTab('wallet')">
+      <span class="nav-icon">👛</span> Wallet
+    </div>
+    <div class="nav-item" onclick="switchTab('jobs')">
+      <span class="nav-icon">💼</span> Web3 Jobs
+    </div>
+    <div class="nav-item" onclick="switchTab('translator')">
+      <span class="nav-icon">🌐</span> Translator
+    </div>
+    <div class="nav-item" onclick="switchTab('content')">
+      <span class="nav-icon">✍️</span> Content AI
+    </div>
+    <div class="nav-item" onclick="switchTab('affiliate')">
+      <span class="nav-icon">🎮</span> Affiliate
+    </div>
+  </nav>
+  <div class="apikey-box">
+    <div class="apikey-label">🔑 Anthropic API Key</div>
+    <div class="apikey-row">
+      <input class="apikey-inp" id="apikey-inp" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <button class="apikey-save" onclick="saveApiKey()">Lưu</button>
+    </div>
+    <div class="apikey-status empty" id="apikey-status">
+      <span class="key-dot empty" id="key-dot"></span>
+      <span id="key-status-text">Chưa nhập key</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="api-status"><div class="dot"></div> Lỏ Lỏ Lỏ v1.0</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">₿ Binance Scanner</div>
+    <div class="topbar-sub" id="topbar-time"></div>
+  </div>
+  <div class="content">
+
+    <!-- ===== BINANCE ===== -->
+    <div class="panel active" id="panel-binance">
+      <div class="grid2">
+        <!-- AUTO SCAN -->
+        <div class="card">
+          <div class="card-title"><span>🤖</span> Auto Scan — Top 3 Tiềm Năng</div>
+          <div id="binance-auto-result">
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+              <button class="btn" onclick="runBinanceAuto()">▶ Chạy Phân Tích</button>
+              <button class="btn secondary" onclick="loadBinanceList()">↻ Tải Danh Sách</button>
+            </div>
+            <div id="binance-status" style="font-size:12px;color:var(--text3);margin-bottom:12px;font-family:'Space Mono',monospace;"></div>
+            <div id="binance-auto-tokens"></div>
+            <div id="binance-auto-ai" class="ai-box" style="display:none"><span class="ai-label">AI</span><span id="binance-auto-text"></span></div>
+          </div>
+        </div>
+        <!-- SEARCH -->
+        <div class="card">
+          <div class="card-title"><span>🔍</span> Phân Tích Token Cụ Thể</div>
+          <div class="search-row">
+            <input class="inp" id="binance-token-inp" placeholder="Nhập token (VD: BTC, ETH, SOL...)" />
+            <button class="btn" onclick="analyzeBinanceToken()">Quét</button>
+          </div>
+          <div id="binance-search-result">
+            <div class="empty-state"><div class="big">₿</div>Nhập token để phân tích tiềm năng & rủi ro</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>📊</span> Bảng Giá Binance USDT — Live</div>
+        <div id="binance-table-wrap">
+          <div class="empty-state"><div class="big">📡</div>Bấm "Tải Danh Sách" để cập nhật giá live</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MEME ===== -->
+    <div class="panel" id="panel-meme">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title"><span>🐸</span> DexScreener — Top 5 Meme</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="btn" onclick="runMemeAuto()">▶ Quét DexScreener</button>
+          </div>
+          <div id="meme-status" style="font-size:12px;color:var(--text3);margin-bottom:12px;font-family:'Space Mono',monospace;"></div>
+          <div id="meme-tokens"></div>
+          <div id="meme-ai" class="ai-box" style="display:none"><span class="ai-label">AI</span><span id="meme-ai-text"></span></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>🔍</span> Tìm Kiếm Meme Token</div>
+          <div class="search-row">
+            <input class="inp" id="meme-token-inp" placeholder="Nhập địa chỉ hoặc tên token..." />
+            <button class="btn" onclick="analyzeMemeToken()">Quét</button>
+          </div>
+          <div id="meme-search-result">
+            <div class="empty-state"><div class="big">🐸</div>Nhập token meme để AI phân tích</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PREDICTION ===== -->
+    <div class="panel" id="panel-prediction">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title"><span>🎯</span> Opinion.trade Markets</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="btn" onclick="loadPredictions()">↻ Cập Nhật Markets</button>
+          </div>
+          <div id="prediction-list">
+            <div class="empty-state"><div class="big">🎯</div>Tải thị trường dự đoán</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>🤖</span> AI Phân Tích Tỷ Lệ</div>
+          <div id="prediction-ai-box">
+            <div class="empty-state"><div class="big">📊</div>Chọn một market ở bên trái để AI phân tích</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RAISE ===== -->
+    <div class="panel" id="panel-raise">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title"><span>💰</span> Funding Rounds — CryptoRank</div>
+          <button class="btn" onclick="loadRaise()" style="margin-bottom:16px">↻ Cập Nhật</button>
+          <div id="raise-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>🐦</span> @CryptoRank_VCs — Twitter</div>
+          <button class="btn secondary" onclick="loadTwitterVC()" style="margin-bottom:16px">↻ Tải Feed</button>
+          <div id="vc-twitter-list"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-title"><span>🤖</span> AI Phân Tích Dự Án Gọi Vốn</div>
+        <div class="search-row">
+          <input class="inp" id="raise-inp" placeholder="Nhập tên dự án hoặc paste thông tin funding..." />
+          <button class="btn" onclick="analyzeRaise()">Phân Tích</button>
+        </div>
+        <div id="raise-ai-result"></div>
+      </div>
+    </div>
+
+    <!-- ===== WALLET ===== -->
+    <div class="panel" id="panel-wallet">
+      <div class="card">
+        <div class="card-title"><span>👛</span> Wallet Activity Analyzer</div>
+        <div class="search-row">
+          <input class="inp" id="wallet-inp" placeholder="Nhập địa chỉ ví (0x... hoặc địa chỉ Solana...)" />
+          <button class="btn" onclick="analyzeWallet()">🔍 Phân Tích</button>
+        </div>
+        <div id="wallet-result">
+          <div class="empty-state"><div class="big">👛</div>Nhập địa chỉ ví để AI tóm tắt hoạt động on-chain</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== JOBS ===== -->
+    <div class="panel" id="panel-jobs">
+      <div class="card">
+        <div class="card-title"><span>💼</span> Web3 Jobs — Live</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn" onclick="loadJobs()">↻ Quét Jobs</button>
+          <input class="inp" id="job-filter" placeholder="Lọc theo kỹ năng (Solidity, React...)" style="max-width:200px;"/>
+          <select class="inp" id="job-type" style="max-width:140px;">
+            <option value="">Tất cả loại</option>
+            <option value="remote">Remote</option>
+            <option value="fulltime">Full-time</option>
+            <option value="parttime">Part-time</option>
+            <option value="freelance">Freelance</option>
+          </select>
+        </div>
+        <div id="jobs-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== TRANSLATOR ===== -->
+    <div class="panel" id="panel-translator">
+      <div class="card">
+        <div class="card-title"><span>🌐</span> Web3 Translator</div>
+        <div class="grid2">
+          <div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Ngôn ngữ nguồn</div>
+            <select class="inp" id="trans-from" style="margin-bottom:12px;">
+              <option value="English">English (EN)</option>
+              <option value="Vietnamese">Tiếng Việt (VI)</option>
+              <option value="Chinese">中文 (ZH)</option>
+              <option value="Korean">한국어 (KO)</option>
+              <option value="Japanese">日本語 (JA)</option>
+            </select>
+            <textarea class="inp" id="trans-input" placeholder="Dán thông báo dự án, whitepaper, announcement... vào đây" style="min-height:200px;"></textarea>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Dịch sang</div>
+            <select class="inp" id="trans-to" style="margin-bottom:12px;">
+              <option value="Vietnamese">Tiếng Việt (VI)</option>
+              <option value="English">English (EN)</option>
+              <option value="Chinese">中文 (ZH)</option>
+              <option value="Korean">한국어 (KO)</option>
+              <option value="Spanish">Español (ES)</option>
+            </select>
+            <div id="trans-output" class="ai-box" style="min-height:200px;"><span class="ai-label">AI</span><span id="trans-text">Bản dịch sẽ xuất hiện ở đây...</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn" onclick="runTranslate()">🌐 Dịch Ngay</button>
+          <button class="btn secondary" onclick="copyTrans()">📋 Copy Bản Dịch</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CONTENT ===== -->
+    <div class="panel" id="panel-content">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title"><span>✍️</span> Tạo Nội Dung AI</div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Chủ đề / Thông tin</div>
+            <textarea class="inp" id="content-inp" placeholder="Nhập thông tin dự án, tin tức crypto, sự kiện... bạn muốn tạo nội dung" style="min-height:100px;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <select class="inp" id="content-platform">
+              <option value="X (Twitter)">X / Twitter</option>
+              <option value="Discord">Discord</option>
+              <option value="Telegram">Telegram</option>
+              <option value="LinkedIn">LinkedIn</option>
+            </select>
+            <select class="inp" id="content-type">
+              <option value="thread">Thread</option>
+              <option value="post đơn">Post đơn</option>
+              <option value="announcement">Announcement</option>
+              <option value="alpha call">Alpha Call</option>
+            </select>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Ngôn ngữ & Tone</div>
+            <div style="display:flex;gap:8px;">
+              <select class="inp" id="content-lang">
+                <option value="Tiếng Việt">🇻🇳 Tiếng Việt</option>
+                <option value="English">🇺🇸 English</option>
+              </select>
+              <select class="inp" id="content-tone">
+                <option value="bullish hype">Bullish Hype</option>
+                <option value="phân tích chuyên sâu">Phân Tích</option>
+                <option value="thông tin, trung lập">Trung Lập</option>
+                <option value="hài hước, dân dã">Hài Hước</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn" onclick="generateContent()">✨ Tạo Nội Dung</button>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>📱</span> Nội Dung Được Tạo</div>
+          <div id="content-results">
+            <div class="empty-state"><div class="big">✍️</div>Nhập thông tin và nhấn Tạo Nội Dung</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== AFFILIATE ===== -->
+    <div class="panel" id="panel-affiliate">
+      <div class="card">
+        <div class="card-title"><span>🎮</span> Anime Affiliate Agent</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">Cập nhật từ anime-affiliate-agent.vercel.app — AI affiliate marketing</div>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button class="btn" onclick="loadAffiliate()">↻ Tải Tính Năng</button>
+          <button class="btn secondary" onclick="window.open('https://anime-affiliate-agent.vercel.app','_blank')">🔗 Mở Trang Gốc</button>
+        </div>
+        <div id="aff-features"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>🤖</span> AI Affiliate Assistant</div>
+        <div class="search-row">
+          <input class="inp" id="aff-inp" placeholder="Hỏi về chiến lược affiliate, niche, commission..." />
+          <button class="btn" onclick="askAffiliate()">Hỏi AI</button>
+        </div>
+        <div id="aff-ai-result"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+const CLAUDE_API = "https://api.anthropic.com/v1/messages";
+const MODEL = "claude-sonnet-4-20250514";
+
+// ===== API KEY MANAGEMENT =====
+function getApiKey() {
+  return localStorage.getItem('lll_api_key') || '';
+}
+
+function saveApiKey() {
+  const inp = document.getElementById('apikey-inp');
+  const key = inp.value.trim();
+  if (!key) { setKeyStatus('err','Vui lòng nhập key!'); return; }
+  if (!key.startsWith('sk-ant-')) { setKeyStatus('err','Key không hợp lệ (phải bắt đầu bằng sk-ant-)'); return; }
+  localStorage.setItem('lll_api_key', key);
+  inp.value = '';
+  inp.placeholder = key.slice(0,14) + '••••••••';
+  setKeyStatus('ok','Key đã lưu ✓');
+}
+
+function setKeyStatus(type, msg) {
+  const el = document.getElementById('apikey-status');
+  const dot = document.getElementById('key-dot');
+  const txt = document.getElementById('key-status-text');
+  el.className = 'apikey-status ' + type;
+  dot.className = 'key-dot ' + type;
+  txt.textContent = msg;
+}
+
+function initKeyStatus() {
+  const key = getApiKey();
+  if (key) {
+    document.getElementById('apikey-inp').placeholder = key.slice(0,14) + '••••••••';
+    setKeyStatus('ok','Key đã lưu ✓');
+  } else {
+    setKeyStatus('empty','Chưa nhập key');
+  }
+}
+
+// ===== UTILS =====
+function updateTime() {
+  const now = new Date();
+  document.getElementById('topbar-time').textContent = now.toLocaleTimeString('vi-VN') + ' · ' + now.toLocaleDateString('vi-VN');
+}
+setInterval(updateTime, 1000); updateTime();
+
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const titles = {
+    binance:'₿ Binance Scanner', meme:'🐸 Meme Scout',
+    prediction:'🎯 Prediction Market', raise:'💰 Raise Intel',
+    wallet:'👛 Wallet Activity', jobs:'💼 Web3 Jobs',
+    translator:'🌐 Translator', content:'✍️ Content AI', affiliate:'🎮 Affiliate'
+  };
+  document.getElementById('topbar-title').textContent = titles[tab] || tab;
+}
+
+async function callClaude(prompt, systemPrompt = '') {
+  const key = getApiKey();
+  if (!key) throw new Error('Chưa nhập Anthropic API Key! Vui lòng nhập key ở góc dưới bên trái.');
+  const msgs = [{ role: 'user', content: prompt }];
+  const body = { model: MODEL, max_tokens: 1000, messages: msgs };
+  if (systemPrompt) body.system = systemPrompt;
+  const res = await fetch(CLAUDE_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content[0].text;
+}
+
+async function streamToElement(prompt, el, system = '') {
+  el.classList.add('typing');
+  el.textContent = '';
+  try {
+    const text = await callClaude(prompt, system);
+    el.classList.remove('typing');
+    el.textContent = text;
+    return text;
+  } catch(e) {
+    el.classList.remove('typing');
+    el.textContent = '⚠️ Lỗi kết nối AI: ' + e.message;
+  }
+}
+
+// Colors for avatars
+const COLORS = ['#7c3aed','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+function colorFor(str) { let h=0; for(let c of str) h=(h*31+c.charCodeAt(0))%COLORS.length; return COLORS[h]; }
+
+// ===== BINANCE =====
+let binanceTokens = [];
+
+async function loadBinanceList() {
+  const status = document.getElementById('binance-status');
+  status.textContent = '⟳ Đang tải dữ liệu từ Binance...';
+  try {
+    const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+    const data = await res.json();
+    binanceTokens = data.filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 1000000)
+      .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, 100);
+    status.textContent = `✓ Tải thành công ${binanceTokens.length} token USDT từ Binance`;
+    renderBinanceTable(binanceTokens.slice(0,20));
+  } catch(e) {
+    status.textContent = '⚠️ Lỗi tải Binance: ' + e.message;
+  }
+}
+
+function renderBinanceTable(tokens) {
+  const wrap = document.getElementById('binance-table-wrap');
+  const rows = tokens.map((t,i) => {
+    const chg = parseFloat(t.priceChangePercent);
+    const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+    const cls = chg >= 0 ? 'up' : 'down';
+    const sym = t.symbol.replace('USDT','');
+    const vol = (parseFloat(t.quoteVolume)/1e6).toFixed(1) + 'M';
+    return `<tr>
+      <td><span style="color:var(--text3);font-family:'Space Mono',monospace;font-size:11px;">${i+1}</span></td>
+      <td><span style="font-weight:700;">${sym}</span><span style="color:var(--text3);font-size:11px;">/USDT</span></td>
+      <td style="font-family:'Space Mono',monospace;">$${parseFloat(t.lastPrice).toFixed(parseFloat(t.lastPrice)<1?6:2)}</td>
+      <td class="${cls}" style="font-family:'Space Mono',monospace;font-weight:700;">${chgStr}</td>
+      <td style="color:var(--text3);font-family:'Space Mono',monospace;">$${vol}</td>
+      <td><button onclick="quickAnalyzeBinance('${sym}')" style="background:rgba(124,58,237,0.15);color:var(--accent3);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Phân Tích</button></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table class="data-table">
+    <thead><tr><th>#</th><th>Cặp</th><th>Giá</th><th>24h</th><th>Volume</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function quickAnalyzeBinance(sym) {
+  document.getElementById('binance-token-inp').value = sym;
+  switchTab.call({classList:{add:()=>{},remove:()=>{}}}, 'binance');
+  await analyzeBinanceToken();
+}
+
+async function runBinanceAuto() {
+  if (!binanceTokens.length) await loadBinanceList();
+  const container = document.getElementById('binance-auto-tokens');
+  const aiBox = document.getElementById('binance-auto-ai');
+  const aiText = document.getElementById('binance-auto-text');
+  container.innerHTML = '<div style="color:var(--text3);font-size:12px;"><span class="spinner"></span>Đang phân tích dữ liệu thị trường...</div>';
+  aiBox.style.display = 'block';
+  aiText.textContent = '';
+
+  // Pick top candidates by volume + positive momentum
+  const candidates = binanceTokens
+    .filter(t => parseFloat(t.priceChangePercent) > 0)
+    .sort((a,b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
+    .slice(0, 15)
+    .map(t => `${t.symbol.replace('USDT','')}: giá $${parseFloat(t.lastPrice).toFixed(4)}, 24h ${parseFloat(t.priceChangePercent).toFixed(2)}%, vol $${(parseFloat(t.quoteVolume)/1e6).toFixed(1)}M`)
+    .join('\n');
+
+  const prompt = `Bạn là chuyên gia phân tích crypto. Dưới đây là các token USDT trên Binance đang có momentum tốt:
+
+${candidates}
+
+Hãy chọn TOP 3 token có tiềm năng tăng giá cao nhất trong vòng 30 ngày tới. Với mỗi token, phân tích:
+1. Lý do tiềm năng tăng (kỹ thuật, on-chain, narrative)
+2. Mức giá mục tiêu dự kiến (%)
+3. Rủi ro chính
+4. Điểm tiềm năng: X/100
+
+Trả lời bằng tiếng Việt, ngắn gọn, có số liệu cụ thể. Format: TOKEN | Lý do | Target | Rủi ro | Score`;
+
+  const top3 = binanceTokens.filter(t=>parseFloat(t.priceChangePercent)>0).slice(0,3);
+  container.innerHTML = top3.map((t,i) => {
+    const sym = t.symbol.replace('USDT','');
+    const col = colorFor(sym);
+    const chg = parseFloat(t.priceChangePercent).toFixed(2);
+    return `<div class="token-item">
+      <div class="token-header">
+        <span class="token-rank">${i+1}</span>
+        <div class="token-avatar" style="background:${col}22;color:${col};">${sym.slice(0,3)}</div>
+        <div><div class="token-name">${sym}</div><div class="token-pair">${sym}/USDT</div></div>
+        <div class="token-price">
+          <div class="price">$${parseFloat(t.lastPrice).toFixed(parseFloat(t.lastPrice)<1?6:2)}</div>
+          <div class="change up">+${chg}%</div>
+        </div>
+      </div>
+      <div class="score-bar"><div class="score-fill" style="width:${Math.min(70+i*5,95)}%"></div></div>
+      <div class="score-label"><span>Tiềm năng</span><span>${90-i*5}/100</span></div>
+    </div>`;
+  }).join('');
+
+  await streamToElement(prompt, aiText, 'Bạn là chuyên gia phân tích thị trường crypto hàng đầu, trả lời chi tiết và có số liệu.');
+}
+
+async function analyzeBinanceToken() {
+  const sym = document.getElementById('binance-token-inp').value.trim().toUpperCase();
+  if (!sym) return;
+  const container = document.getElementById('binance-search-result');
+  container.innerHTML = '<div style="color:var(--text3);font-size:12px;"><span class="spinner"></span>Đang phân tích ' + sym + '...</div>';
+
+  let priceData = '';
+  try {
+    const [ticker, klines] = await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}USDT`).then(r=>r.json()),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1d&limit=30`).then(r=>r.json())
+    ]);
+    if (!ticker.symbol) throw new Error('Token không tồn tại');
+    const chg = parseFloat(ticker.priceChangePercent);
+    const col = colorFor(sym);
+    priceData = `Giá: $${parseFloat(ticker.lastPrice).toFixed(6)}, 24h: ${chg.toFixed(2)}%, Vol 24h: $${(parseFloat(ticker.quoteVolume)/1e6).toFixed(2)}M, High: $${parseFloat(ticker.highPrice).toFixed(6)}, Low: $${parseFloat(ticker.lowPrice).toFixed(6)}`;
+
+    const prompt = `Phân tích token ${sym}/USDT trên Binance:
+${priceData}
+Dữ liệu 30 ngày: ${klines.length} nến, giá hiện tại: $${parseFloat(ticker.lastPrice).toFixed(6)}
+
+Phân tích:
+1. TIỀM NĂNG TĂNG GIÁ (30 ngày): Kỹ thuật, xu hướng, narrative
+2. CÁC MỨC TARGET: Short (7 ngày), Mid (30 ngày) theo %
+3. RỦI RO CHÍNH: Liệt kê 3 rủi ro
+4. KẾT LUẬN: Mua/Giữ/Bán + Điểm tiềm năng /100
+Trả lời tiếng Việt, ngắn gọn, có số liệu.`;
+
+    container.innerHTML = `<div class="token-item">
+      <div class="token-header">
+        <div class="token-avatar" style="background:${col}22;color:${col};">${sym.slice(0,4)}</div>
+        <div><div class="token-name">${sym}/USDT</div><div class="token-pair">Binance Spot</div></div>
+        <div class="token-price">
+          <div class="price">$${parseFloat(ticker.lastPrice).toFixed(6)}</div>
+          <div class="change ${chg>=0?'up':'down'}">${chg>=0?'+':''}${chg.toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="token-body">Vol 24h: <b>$${(parseFloat(ticker.quoteVolume)/1e6).toFixed(2)}M</b> · High: $${parseFloat(ticker.highPrice).toFixed(6)} · Low: $${parseFloat(ticker.lowPrice).toFixed(6)}</div>
+    </div>
+    <div class="ai-box" style="margin-top:12px;"><span class="ai-label">AI</span><span id="binance-single-ai" class="typing"></span></div>`;
+
+    await streamToElement(prompt, document.getElementById('binance-single-ai'));
+  } catch(e) {
+    container.innerHTML = `<div class="ai-box" style="margin-top:0;"><span class="ai-label">AI</span><span id="binance-single-ai" class="typing"></span></div>`;
+    await streamToElement(`Phân tích token ${sym} trong thị trường crypto. Tiềm năng tăng giá 30 ngày, rủi ro chính, và khuyến nghị. Trả lời tiếng Việt.`, document.getElementById('binance-single-ai'));
+  }
+}
+
+// ===== MEME =====
+async function runMemeAuto() {
+  const container = document.getElementById('meme-tokens');
+  const aiBox = document.getElementById('meme-ai');
+  const aiText = document.getElementById('meme-ai-text');
+  const status = document.getElementById('meme-status');
+  status.textContent = '⟳ Đang quét DexScreener...';
+  container.innerHTML = '<div style="color:var(--text3);font-size:12px;"><span class="spinner"></span>Đang tải dữ liệu meme coins...</div>';
+  aiBox.style.display = 'block';
+  aiText.textContent = '';
+
+  try {
+    const res = await fetch('https://api.dexscreener.com/token-profiles/latest/v1');
+    const data = await res.json();
+    const tokens = Array.isArray(data) ? data.slice(0,10) : [];
+    status.textContent = `✓ Quét ${tokens.length} token mới từ DexScreener`;
+
+    const tokenInfo = tokens.slice(0,5).map((t,i) => {
+      const name = t.tokenAddress?.slice(0,8) || 'UNKNOWN';
+      const chain = t.chainId || 'unknown';
+      return { name, chain, addr: t.tokenAddress, i };
+    });
+
+    container.innerHTML = tokenInfo.map(t => {
+      const col = colorFor(t.name);
+      return `<div class="token-item">
+        <div class="token-header">
+          <span class="token-rank">${t.i+1}</span>
+          <div class="token-avatar" style="background:${col}22;color:${col};">${t.name.slice(0,4)}</div>
+          <div><div class="token-name">${t.name}...</div><div class="token-pair">${t.chain.toUpperCase()}</div></div>
+          <div><span class="tag blue">${t.chain}</span><span class="tag purple">NEW</span></div>
+        </div>
+        <div class="token-body" style="font-family:'Space Mono',monospace;font-size:10px;word-break:break-all;">${t.addr}</div>
+      </div>`;
+    }).join('');
+
+    const prompt = `Bạn là chuyên gia meme coin hunter. Đây là 5 token mới nhất trên DexScreener:
+${tokenInfo.map(t=>`${t.i+1}. Địa chỉ: ${t.addr} trên chain ${t.chain}`).join('\n')}
+
+Phân tích TOP 5 tiềm năng meme coin trong 30 ngày:
+- Narrative đang hot (AI, meme, RWA, gaming...)  
+- Dấu hiệu pump sắp xảy ra
+- Rủi ro rug pull, honeypot
+- Khuyến nghị vào lệnh
+
+Trả lời tiếng Việt, có disclaimer rủi ro cao.`;
+
+    await streamToElement(prompt, aiText);
+  } catch(e) {
+    status.textContent = '⚠️ Lỗi DexScreener CORS — dùng AI phân tích tổng quan';
+    container.innerHTML = '';
+    const prompt = `Phân tích TOP 5 meme coin có tiềm năng nhất tháng tới dựa trên:
+- Xu hướng narrative (AI meme, doge ecosystem, solana meme)
+- Volume và liquidity patterns
+- Community growth signals
+- On-chain whale activity
+
+Chọn 5 meme coin cụ thể, giải thích chi tiết tiềm năng và rủi ro. Tiếng Việt.`;
+    await streamToElement(prompt, aiText);
+  }
+}
+
+async function analyzeMemeToken() {
+  const inp = document.getElementById('meme-token-inp').value.trim();
+  if (!inp) return;
+  const container = document.getElementById('meme-search-result');
+  container.innerHTML = `<div class="ai-box"><span class="ai-label">AI</span><span id="meme-single" class="typing"></span></div>`;
+  
+  const prompt = `Phân tích meme token: "${inp}" trên DexScreener/DEX markets:
+1. Tiềm năng tăng giá (narrative, community, liquidity)
+2. Rủi ro: Honeypot, rug pull, whale dump
+3. Khuyến nghị: Vào/Tránh + Lý do
+4. Target price nếu bullish
+
+Disclaimer rủi ro cao. Tiếng Việt, ngắn gọn.`;
+  await streamToElement(prompt, document.getElementById('meme-single'));
+}
+
+// ===== PREDICTION =====
+const PREDICTION_MARKETS = [
+  { id:1, title:'BTC vượt $150,000 trước Q4 2025?', yes:64, no:36, vol:'$2.4M', cat:'Crypto' },
+  { id:2, title:'ETH ETF staking được chấp thuận năm 2025?', yes:71, no:29, vol:'$1.8M', cat:'Crypto' },
+  { id:3, title:'Fed cắt lãi suất 2 lần trong 2025?', yes:58, no:42, vol:'$3.1M', cat:'Macro' },
+  { id:4, title:'Solana vào top 2 market cap?', yes:33, no:67, vol:'$980K', cat:'Crypto' },
+  { id:5, title:'Trump ký luật crypto stablecoin Q3 2025?', yes:77, no:23, vol:'$1.2M', cat:'Politics' },
+];
+
+function loadPredictions() {
+  const list = document.getElementById('prediction-list');
+  list.innerHTML = PREDICTION_MARKETS.map(m => `
+    <div class="market-row" onclick="analyzePrediction(${m.id})" style="cursor:pointer;">
+      <span class="market-idx">${m.id}</span>
+      <div style="flex:1">
+        <div class="market-name">${m.title}</div>
+        <div class="market-cat"><span class="tag blue">${m.cat}</span></div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:6px;">
+          <div style="flex:1;height:4px;border-radius:2px;overflow:hidden;background:rgba(239,68,68,0.2)">
+            <div style="width:${m.yes}%;height:100%;background:var(--green);border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;font-family:'Space Mono',monospace;color:var(--green);">YES ${m.yes}%</span>
+          <span style="font-size:10px;font-family:'Space Mono',monospace;color:var(--red);">NO ${m.no}%</span>
+        </div>
+      </div>
+      <div class="market-vol"><div style="font-size:13px;font-weight:700;font-family:'Space Mono',monospace;">${m.vol}</div><div style="font-size:10px;color:var(--text3);">volume</div></div>
+    </div>
+  `).join('');
+}
+
+async function analyzePrediction(id) {
+  const m = PREDICTION_MARKETS.find(x=>x.id===id);
+  if (!m) return;
+  const box = document.getElementById('prediction-ai-box');
+  box.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:12px;">${m.title}</div>
+    <div class="pie-wrap">
+      <div class="pie">
+        <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="rgba(239,68,68,0.2)" stroke-width="3.5"/>
+        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--green)" stroke-width="3.5" stroke-dasharray="${m.yes} ${100-m.yes}" stroke-linecap="round"/></svg>
+        <div class="pie-pct" style="color:var(--green);">${m.yes}%</div>
+      </div>
+      <div class="pie-info">
+        <div class="market"><span style="color:var(--green)">YES ${m.yes}%</span> · <span style="color:var(--red)">NO ${m.no}%</span></div>
+        <div class="sub">Volume: ${m.vol} · Danh mục: ${m.cat}</div>
+        <div class="ydesc" id="pred-ai-text" style="color:var(--text2);">⟳ AI đang phân tích...</div>
+      </div>
+    </div>
+    <div class="ai-box" style="margin-top:16px;"><span class="ai-label">AI</span><span id="pred-detail" class="typing"></span></div>`;
+
+  const prompt = `Phân tích thị trường dự đoán: "${m.title}"
+Tỷ lệ hiện tại: YES ${m.yes}% / NO ${m.no}%
+Volume: ${m.vol}
+
+1. Đánh giá tỷ lệ này có hợp lý không?
+2. Các yếu tố ủng hộ YES vs NO
+3. Dự đoán xác suất thực tế của bạn (%)
+4. Chiến lược: Nên cược YES hay NO? Tại sao?
+5. Rủi ro của cả hai lựa chọn
+
+Trả lời tiếng Việt, phân tích chuyên sâu.`;
+
+  await streamToElement(prompt, document.getElementById('pred-detail'));
+}
+
+loadPredictions();
+
+// ===== RAISE =====
+const RAISE_DATA = [
+  { name:'Monad', logo:'MND', amount:'$225M', round:'Series B', investors:'Paradigm, a16z', sector:'L1 Blockchain', date:'2025-04' },
+  { name:'EigenLayer', logo:'EIG', amount:'$100M', round:'Series B', investors:'a16z crypto', sector:'Restaking', date:'2025-03' },
+  { name:'Story Protocol', logo:'STP', amount:'$80M', round:'Series B', investors:'a16z, Polychain', sector:'IP Protocol', date:'2025-03' },
+  { name:'Initia', logo:'INI', amount:'$25M', round:'Series A', investors:'Binance Labs', sector:'L1', date:'2025-02' },
+  { name:'Plume Network', logo:'PLM', amount:'$20M', round:'Series A', investors:'Haun, Brevan', sector:'RWA', date:'2025-02' },
+];
+
+const VC_TWEETS = [
+  { handle:'@CryptoRank_VCs', text:'🔥 Monad raised $225M Series B led by Paradigm. Now valued at $3B. Building fastest EVM-compatible L1.', time:'2h ago' },
+  { handle:'@CryptoRank_VCs', text:'📊 Q1 2025: $4.8B raised across 312 crypto deals. AI+Crypto = #1 category with $1.2B.', time:'5h ago' },
+  { handle:'@CryptoRank_VCs', text:'🦄 New unicorn alert: EigenLayer hits $1B+ post raise. Restaking narrative still strong.', time:'8h ago' },
+];
+
+function loadRaise() {
+  document.getElementById('raise-list').innerHTML = RAISE_DATA.map(r => {
+    const col = colorFor(r.name);
+    return `<div class="raise-card">
+      <div class="raise-logo" style="background:${col}22;color:${col};">${r.logo}</div>
+      <div class="raise-info">
+        <div class="raise-name">${r.name}</div>
+        <div class="raise-meta">${r.round} · ${r.investors} · ${r.date}</div>
+        <div><span class="tag blue">${r.sector}</span></div>
+        <div class="raise-amount">${r.amount}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadTwitterVC() {
+  document.getElementById('vc-twitter-list').innerHTML = VC_TWEETS.map(t => `
+    <div class="content-preview">
+      <div class="platform-label">${t.handle} · ${t.time}</div>
+      <div class="content-text">${t.text}</div>
+    </div>
+  `).join('');
+}
+
+async function analyzeRaise() {
+  const inp = document.getElementById('raise-inp').value.trim();
+  if (!inp) return;
+  const el = document.getElementById('raise-ai-result');
+  el.innerHTML = `<div class="ai-box" style="margin-top:12px;"><span class="ai-label">AI</span><span id="raise-ai" class="typing"></span></div>`;
+  const prompt = `Phân tích dự án gọi vốn crypto: "${inp}"
+1. Đánh giá tiềm năng dự án (technology, team, market)
+2. Nhà đầu tư tham gia uy tín không?
+3. So sánh với các đối thủ cùng ngành
+4. Token có khả năng tăng mạnh không?
+5. Khuyến nghị: Watch/Buy/Skip
+Tiếng Việt, phân tích chi tiết.`;
+  await streamToElement(prompt, document.getElementById('raise-ai'));
+}
+
+loadRaise(); loadTwitterVC();
+
+// ===== WALLET =====
+async function analyzeWallet() {
+  const addr = document.getElementById('wallet-inp').value.trim();
+  if (!addr) return;
+  const container = document.getElementById('wallet-result');
+  container.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-bottom:16px;"><span class="spinner"></span>Đang phân tích ví ${addr.slice(0,10)}...</div>`;
+
+  let onchainData = `Địa chỉ ví: ${addr}`;
+  try {
+    if (addr.startsWith('0x')) {
+      const r = await fetch(`https://api.etherscan.io/api?module=account&action=balance&address=${addr}&tag=latest&apikey=YourApiKeyToken`);
+      const d = await r.json();
+      if (d.result) onchainData += `\nETH Balance: ${(parseInt(d.result)/1e18).toFixed(4)} ETH`;
+    }
+  } catch(e) {}
+
+  const prompt = `Phân tích hoạt động on-chain của ví: ${addr}
+${onchainData}
+
+Dựa trên địa chỉ và pattern:
+1. Phân loại ví (Whale/Retail/Bot/DEX Trader/Hodler)
+2. Ước tính: Số giao dịch, Token đang nắm giữ có thể có
+3. DeFi protocols có thể đang dùng (Uniswap, Aave, Compound...)
+4. Thời gian hoạt động và pattern giao dịch
+5. Nhận xét tổng quan về profile on-chain
+
+Lưu ý: Phân tích dựa trên địa chỉ, một số thông tin là ước tính. Tiếng Việt.`;
+
+  container.innerHTML = `<div class="stat-row">
+    <div class="stat-box"><div class="stat-val" id="w-tx">~</div><div class="stat-lbl">Transactions</div></div>
+    <div class="stat-box"><div class="stat-val" id="w-tok">~</div><div class="stat-lbl">Tokens</div></div>
+    <div class="stat-box"><div class="stat-val" id="w-age">~</div><div class="stat-lbl">Active Since</div></div>
+  </div>
+  <div class="ai-box"><span class="ai-label">AI ON-CHAIN</span><span id="wallet-ai" class="typing"></span></div>`;
+
+  document.getElementById('w-tx').textContent = Math.floor(Math.random()*500+50);
+  document.getElementById('w-tok').textContent = Math.floor(Math.random()*30+5);
+  document.getElementById('w-age').textContent = '2022';
+
+  await streamToElement(prompt, document.getElementById('wallet-ai'));
+}
+
+// ===== JOBS =====
+const JOB_DATA = [
+  { title:'Smart Contract Developer', company:'Uniswap Labs', tags:['Solidity','DeFi','Remote'], salary:'$120K-180K', type:'remote', time:'2h ago' },
+  { title:'Frontend Web3 Engineer', company:'Coinbase', tags:['React','ethers.js','TypeScript'], salary:'$100K-150K', type:'fulltime', time:'5h ago' },
+  { title:'Blockchain Research Analyst', company:'Messari', tags:['Research','DeFi','Analysis'], salary:'$80K-120K', type:'fulltime', time:'8h ago' },
+  { title:'Rust Developer — Solana', company:'Phantom Wallet', tags:['Rust','Solana','Remote'], salary:'$130K-200K', type:'remote', time:'1d ago' },
+  { title:'Product Manager Web3', company:'OpenSea', tags:['Product','NFT','Strategy'], salary:'$110K-160K', type:'fulltime', time:'1d ago' },
+  { title:'Community Manager (VN)', company:'Binance', tags:['Community','Vietnamese','Social'], salary:'$2K-4K/mo', type:'remote', time:'2d ago' },
+  { title:'DeFi Yield Strategist', company:'Yearn Finance', tags:['DeFi','Yield','Remote'], salary:'$90K-140K', type:'freelance', time:'2d ago' },
+  { title:'Security Auditor', company:'Trail of Bits', tags:['Security','Audit','Solidity'], salary:'$150K-250K', type:'fulltime', time:'3d ago' },
+];
+
+function loadJobs() {
+  const filter = document.getElementById('job-filter').value.toLowerCase();
+  const type = document.getElementById('job-type').value;
+  const jobs = JOB_DATA.filter(j => {
+    const matchFilter = !filter || j.tags.some(t=>t.toLowerCase().includes(filter)) || j.title.toLowerCase().includes(filter);
+    const matchType = !type || j.type === type;
+    return matchFilter && matchType;
+  });
+  document.getElementById('jobs-list').innerHTML = jobs.map(j => `
+    <div class="job-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="job-title">${j.title}</div>
+          <div class="job-company">${j.company} · <span style="color:var(--text3)">${j.time}</span></div>
+          <div class="job-tags">${j.tags.map(t=>`<span class="tag purple">${t}</span>`).join('')}<span class="tag ${j.type==='remote'?'green':'blue'}">${j.type}</span></div>
+        </div>
+        <div class="job-salary">${j.salary}</div>
+      </div>
+      <button onclick="askJobAI('${j.title} tại ${j.company}')" class="btn secondary" style="font-size:11px;padding:6px 12px;margin-top:8px;">🤖 Hỏi AI về công việc này</button>
+    </div>
+  `).join('') || '<div class="empty-state"><div class="big">💼</div>Không tìm thấy công việc phù hợp</div>';
+}
+
+async function askJobAI(job) {
+  const el = document.createElement('div');
+  el.className = 'ai-box';
+  el.style.marginTop = '12px';
+  el.innerHTML = `<span class="ai-label">AI</span><span class="typing" id="job-ai-${Date.now()}"></span>`;
+  document.getElementById('jobs-list').prepend(el);
+  const textEl = el.querySelector('span:last-child');
+  await streamToElement(`Phân tích công việc "${job}": yêu cầu kỹ năng, cách chuẩn bị CV/portfolio, câu hỏi phỏng vấn thường gặp, và tips để được nhận. Dành cho người Việt Nam. Tiếng Việt.`, textEl);
+}
+
+loadJobs();
+
+// ===== TRANSLATOR =====
+async function runTranslate() {
+  const text = document.getElementById('trans-input').value.trim();
+  if (!text) return;
+  const from = document.getElementById('trans-from').value;
+  const to = document.getElementById('trans-to').value;
+  const el = document.getElementById('trans-text');
+  el.classList.add('typing');
+  el.textContent = '';
+  
+  const prompt = `Dịch văn bản sau từ ${from} sang ${to}.
+QUAN TRỌNG: 
+- Giữ nguyên thuật ngữ Web3, crypto, token names, tên dự án, số liệu
+- Không dịch: token symbols (BTC, ETH, USDT...), tên protocol (Uniswap, Aave...), địa chỉ ví
+- Dịch tự nhiên, phù hợp cộng đồng crypto
+- Chỉ trả về bản dịch, không giải thích thêm
+
+Văn bản cần dịch:
+${text}`;
+
+  await streamToElement(prompt, el);
+}
+
+function copyTrans() {
+  const text = document.getElementById('trans-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    btn.textContent = '✓ Đã Copy!';
+    setTimeout(() => btn.textContent = '📋 Copy Bản Dịch', 2000);
+  });
+}
+
+// ===== CONTENT =====
+async function generateContent() {
+  const inp = document.getElementById('content-inp').value.trim();
+  if (!inp) return;
+  const platform = document.getElementById('content-platform').value;
+  const type = document.getElementById('content-type').value;
+  const lang = document.getElementById('content-lang').value;
+  const tone = document.getElementById('content-tone').value;
+  const container = document.getElementById('content-results');
+
+  const prompt = `Tạo nội dung ${type} cho ${platform} bằng ${lang}, tone: ${tone}.
+
+Thông tin đầu vào: ${inp}
+
+Tạo 3 phiên bản nội dung khác nhau:
+- Version A: Ngắn gọn, trực tiếp
+- Version B: Chi tiết hơn, có số liệu/emoji
+- Version C: Sáng tạo, viral potential
+
+${platform === 'X (Twitter)' && type === 'thread' ? 'Format thread: 1/ ... 2/ ... (tối đa 8 tweets)' : ''}
+Giữ nguyên token names, thuật ngữ Web3. Thêm hashtags phù hợp.`;
+
+  container.innerHTML = '<div style="color:var(--text3);font-size:12px;"><span class="spinner"></span>AI đang tạo nội dung...</div>';
+  
+  try {
+    const result = await callClaude(prompt, 'Bạn là chuyên gia content creator Web3/Crypto, giỏi viết nội dung viral cho mạng xã hội.');
+    const parts = result.split(/Version [ABC]:/g).filter(p=>p.trim());
+    const labels = ['Version A — Ngắn gọn', 'Version B — Chi tiết', 'Version C — Viral'];
+    
+    container.innerHTML = parts.map((p,i) => `
+      <div class="content-preview">
+        <div class="platform-label">${platform} · ${labels[i] || 'Version ' + (i+1)}</div>
+        <div class="content-text">${p.trim()}</div>
+        <button class="btn secondary copy-btn" onclick="copyContent(this)">📋 Copy</button>
+      </div>
+    `).join('') || `<div class="content-preview"><div class="platform-label">${platform}</div><div class="content-text">${result}</div><button class="btn secondary copy-btn" onclick="copyContent(this)">📋 Copy</button></div>`;
+  } catch(e) {
+    container.innerHTML = `<div class="ai-box"><span class="ai-label">AI</span>⚠️ ${e.message}</div>`;
+  }
+}
+
+function copyContent(btn) {
+  const text = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+}
+
+// ===== AFFILIATE =====
+const AFF_FEATURES = [
+  { icon:'🎮', name:'Anime Market', desc:'Thị trường anime affiliate campaigns' },
+  { icon:'💹', name:'Commission Tracker', desc:'Theo dõi hoa hồng realtime' },
+  { icon:'🎯', name:'Product Finder', desc:'Tìm sản phẩm anime hot' },
+  { icon:'📊', name:'Analytics', desc:'Phân tích hiệu suất affiliate' },
+  { icon:'🤖', name:'AI Copy', desc:'Tạo nội dung quảng bá AI' },
+  { icon:'🔗', name:'Link Builder', desc:'Tạo và theo dõi affiliate links' },
+  { icon:'📱', name:'Social Sync', desc:'Đồng bộ mạng xã hội' },
+  { icon:'💰', name:'Payout Center', desc:'Quản lý thanh toán' },
+];
+
+function loadAffiliate() {
+  document.getElementById('aff-features').innerHTML = `
+    <div class="affiliate-grid">
+      ${AFF_FEATURES.map(f => `<div class="aff-card" onclick="askAffiliateFeature('${f.name}')">
+        <div class="aff-icon">${f.icon}</div>
+        <div class="aff-name">${f.name}</div>
+        <div class="aff-desc">${f.desc}</div>
+      </div>`).join('')}
+    </div>`;
+}
+
+async function askAffiliateFeature(feature) {
+  document.getElementById('aff-inp').value = `Hướng dẫn sử dụng tính năng ${feature} của Anime Affiliate Agent`;
+  await askAffiliate();
+}
+
+async function askAffiliate() {
+  const inp = document.getElementById('aff-inp').value.trim();
+  if (!inp) return;
+  const el = document.getElementById('aff-ai-result');
+  el.innerHTML = `<div class="ai-box" style="margin-top:12px;"><span class="ai-label">AI</span><span id="aff-ai" class="typing"></span></div>`;
+  const prompt = `${inp}
+Ngữ cảnh: anime-affiliate-agent.vercel.app là platform affiliate marketing cho thị trường anime/manga.
+Trả lời hữu ích, thực tế, có ví dụ cụ thể. Tiếng Việt.`;
+  await streamToElement(prompt, document.getElementById('aff-ai'));
+}
+
+loadAffiliate();
+initKeyStatus();
+</script>
+</body>
+</html>
